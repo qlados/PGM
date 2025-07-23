@@ -1,10 +1,13 @@
 package tc.oc.pgm.variables;
 
+import static tc.oc.pgm.util.text.TextParser.parseComponent;
+
 import com.google.common.collect.Range;
 import java.lang.reflect.Method;
 import java.util.Locale;
 import java.util.Map;
 import java.util.regex.Pattern;
+import net.kyori.adventure.text.Component;
 import org.jdom2.Element;
 import tc.oc.pgm.api.filter.Filterables;
 import tc.oc.pgm.api.map.factory.MapFactory;
@@ -19,16 +22,7 @@ import tc.oc.pgm.util.MethodParsers;
 import tc.oc.pgm.util.xml.InvalidXMLException;
 import tc.oc.pgm.util.xml.Node;
 import tc.oc.pgm.util.xml.XMLUtils;
-import tc.oc.pgm.variables.types.ArrayVariable;
-import tc.oc.pgm.variables.types.CuboidVariable;
-import tc.oc.pgm.variables.types.DummyVariable;
-import tc.oc.pgm.variables.types.LivesVariable;
-import tc.oc.pgm.variables.types.MaxBuildVariable;
-import tc.oc.pgm.variables.types.PlayerVariable;
-import tc.oc.pgm.variables.types.ScoreVariable;
-import tc.oc.pgm.variables.types.TeamVariableAdapter;
-import tc.oc.pgm.variables.types.TimeLimitVariable;
-import tc.oc.pgm.variables.types.WorldTimeVariable;
+import tc.oc.pgm.variables.types.*;
 
 public class VariableParser {
   // The limitation is due to them being used in exp4j formulas for.
@@ -68,6 +62,20 @@ public class VariableParser {
     Integer excl = XMLUtils.parseNumberInRange(
         Node.fromAttr(el, "exclusive"), Integer.class, Range.closed(1, 50), null);
     return new DummyVariable<>(scope, def, excl);
+  }
+
+  @MethodParser("displayable")
+  public Variable<?> parseDisplayable(Element el) throws InvalidXMLException {
+    Class<? extends Filterable<?>> scope = Filterables.parse(Node.fromRequiredAttr(el, "scope"));
+    double def = XMLUtils.parseNumber(Node.fromAttr(el, "default"), Double.class, 0d);
+    Component format = parseComponent(Node.fromRequiredAttr(el, "format").getValue());
+    boolean showOnScoreboard = XMLUtils.parseBoolean(Node.fromAttr(el, "show"), false);
+    boolean showValue = XMLUtils.parseBoolean(Node.fromAttr(el, "display-value"), true);
+    // Check for Displayable Variable
+    if (showOnScoreboard) {
+      return new DisplayableVariable<>(scope, def, true, format, showValue);
+    }
+    return new DisplayableVariable<>(scope, def, false, format, showValue);
   }
 
   @MethodParser("array")

@@ -2,6 +2,7 @@ package tc.oc.pgm.variables;
 
 import java.util.Collection;
 import java.util.Optional;
+import net.kyori.adventure.text.Component;
 import tc.oc.pgm.api.feature.FeatureDefinition;
 import tc.oc.pgm.api.match.Match;
 import tc.oc.pgm.filters.Filterable;
@@ -27,6 +28,10 @@ public interface Variable<T extends Filterable<?>> extends FeatureDefinition {
   }
 
   default boolean isExclusive() {
+    return false;
+  }
+
+  default boolean isDisplayable() {
     return false;
   }
 
@@ -63,5 +68,29 @@ public interface Variable<T extends Filterable<?>> extends FeatureDefinition {
     Optional<T> getHolder(Filterable<?> context);
 
     Collection<T> getHolders(Filterable<?> context);
+  }
+
+  interface Displayable<T extends Filterable<?>> extends Variable<T> {
+
+    @Override
+    default boolean isDisplayable() {
+      return true;
+    }
+
+    Component getScoreboardFormat(Filterable<?> context);
+
+    void setFormat(Component scoreboardFormat);
+
+    void setShowOnScoreboard(Boolean newShowOnScoreboard);
+
+    default boolean isShowOnScoreboard() {
+      return false;
+    }
+
+    default Component getScoreboardFormat() {
+      return null;
+    }
+
+    boolean isShowValue();
   }
 }

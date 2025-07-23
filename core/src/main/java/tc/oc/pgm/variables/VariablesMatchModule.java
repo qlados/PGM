@@ -31,6 +31,15 @@ public class VariablesMatchModule implements MatchModule, Listener {
             (Map.Entry<String, Variable<?>>) e);
   }
 
+  public Stream<Map.Entry<String, Variable.Displayable<?>>> getDisplayables() {
+    return getVariables()
+        .filter(entry -> entry.getValue() instanceof Variable.Displayable)
+        .map(entry -> {
+          //noinspection unchecked
+          return (Map.Entry<String, Variable.Displayable<?>>) (Object) entry;
+        });
+  }
+
   public String getId(Variable<?> variable) {
     return context.getName(variable);
   }

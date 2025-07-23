@@ -5,11 +5,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import fr.mrmicky.fastboard.FastBoard;
 import java.time.Duration;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import net.kyori.adventure.text.Component;
@@ -56,6 +52,8 @@ import tc.oc.pgm.util.bukkit.ViaUtils;
 import tc.oc.pgm.util.concurrent.RateLimiter;
 import tc.oc.pgm.util.event.player.PlayerLocaleChangeEvent;
 import tc.oc.pgm.util.platform.Platform;
+import tc.oc.pgm.variables.VariablesMatchModule;
+import tc.oc.pgm.variables.event.VariableChangeEvent;
 
 @ListenerScope(MatchScope.LOADED)
 public class SidebarMatchModule implements MatchModule, Listener {
@@ -64,7 +62,10 @@ public class SidebarMatchModule implements MatchModule, Listener {
     @Override
     public Collection<Class<? extends MatchModule>> getWeakDependencies() {
       return ImmutableList.of(
-          GoalMatchModule.class, ScoreMatchModule.class, BlitzMatchModule.class);
+          GoalMatchModule.class,
+          ScoreMatchModule.class,
+          BlitzMatchModule.class,
+          VariablesMatchModule.class);
     }
 
     @Override
@@ -123,6 +124,11 @@ public class SidebarMatchModule implements MatchModule, Listener {
         .getGoals()
         .forEach(goal -> fmm.onChange(
             Match.class, goal.getScoreboardFilter(), (m, v) -> this.renderSidebarDebounce()));
+
+    Objects.requireNonNull(match.getModule(VariablesMatchModule.class))
+        .getDisplayables()
+        .forEach(var -> this.renderSidebarDebounce());
+
     match
         .moduleOptional(ScoreMatchModule.class)
         .ifPresent(smm -> fmm.onChange(
@@ -231,6 +237,12 @@ public class SidebarMatchModule implements MatchModule, Listener {
   @EventHandler(priority = EventPriority.MONITOR)
   public void timelimitToggle(final CountdownCancelEvent event) {
     if (!(event.getCountdown() instanceof TimeLimitCountdown)) return;
+    renderSidebarDebounce();
+  }
+
+  @EventHandler(priority = EventPriority.MONITOR)
+  public void onVariableChange(VariableChangeEvent event) {
+    if (!(event.getVariable().isDisplayable())) return;
     renderSidebarDebounce();
   }
 

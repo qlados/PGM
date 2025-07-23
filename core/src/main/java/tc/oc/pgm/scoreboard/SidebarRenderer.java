@@ -34,6 +34,8 @@ import tc.oc.pgm.util.StringUtils;
 import tc.oc.pgm.util.named.NameStyle;
 import tc.oc.pgm.util.text.TextFormatter;
 import tc.oc.pgm.util.text.TextTranslations;
+import tc.oc.pgm.variables.Variable;
+import tc.oc.pgm.variables.VariablesMatchModule;
 import tc.oc.pgm.wool.MonumentWool;
 
 class SidebarRenderer {
@@ -45,9 +47,12 @@ class SidebarRenderer {
   private final Match match;
   private final SidebarMatchModule smm;
 
+  private final VariablesMatchModule vmm;
+
   public SidebarRenderer(Match match, SidebarMatchModule smm) {
     this.match = match;
     this.smm = smm;
+    this.vmm = match.getModule(VariablesMatchModule.class);
   }
 
   public Component renderTitle() {
@@ -119,6 +124,9 @@ class SidebarRenderer {
     // Shared goals i.e. not grouped under a specific team
     renderSharedGoals(context);
 
+    // Match-Scoped Variables
+    renderVariablesByScope(context, Match.class);
+
     // Team-specific goals
     for (Competitor competitor : getSortedCompetitors(context, party)) {
       // Avoid rendering team name & objectives if no objective will fit after the name
@@ -126,6 +134,9 @@ class SidebarRenderer {
 
       renderCompetitor(context, competitor);
     }
+
+    // Team-Scoped Variables
+    renderVariablesByScope(context, Party.class);
 
     // Config-based footer, if any is defined
     renderFooter(context);
@@ -195,7 +206,8 @@ class SidebarRenderer {
           MAX_LENGTH < (3 * sortedWools.size()) + (3 * (sortedWools.size() - 1)) + 1;
       TextComponent.Builder woolText = text();
       for (Goal<?> goal : sortedWools) {
-        if (goal instanceof MonumentWool wool) {
+        if (goal instanceof MonumentWool) {
+          MonumentWool wool = (MonumentWool) goal;
           TextComponent spacer = space();
           if (!firstWool && !horizontalCompact) {
             spacer = spacer.append(space()).append(space());
@@ -266,6 +278,33 @@ class SidebarRenderer {
         .color(goal.renderSidebarLabelColor(competitor, viewingParty)));
 
     return line.build();
+  }
+
+  private void renderVariablesByScope(RenderContext context, Class<?> scopeClassToMatch) {
+    if (vmm == null) return;
+    List<Component> sectionRows = new ArrayList<>();
+
+    vmm.getDisplayables().forEach(entry -> {
+      Variable.Displayable<?> var = entry.getValue();
+      if (scopeClassToMatch.equals(var.getScope())) {
+        if (var.isShowOnScoreboard()) {
+          try {
+            Component formatted = var.getScoreboardFormat(context.viewer);
+            sectionRows.add(formatted);
+          } catch (Exception e) {
+            PGM.get()
+                .getGameLogger()
+                .warning("Error rendering variable '" + entry.getKey() + "' for scope "
+                    + scopeClassToMatch.getSimpleName() + ": " + e.getMessage());
+          }
+        }
+      }
+    });
+
+    if (!sectionRows.isEmpty()) {
+      context.startSection();
+      sectionRows.forEach(context::addRow);
+    }
   }
 
   @SuppressWarnings("deprecation")
