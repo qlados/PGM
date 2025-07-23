@@ -11,15 +11,19 @@ import net.minecraft.nbt.NbtAccounter;
 import net.minecraft.nbt.NbtIo;
 import net.minecraft.nbt.NbtUtils;
 import org.bukkit.Location;
+import org.bukkit.Registry;
 import org.bukkit.Sound;
 import org.bukkit.block.Block;
 import org.bukkit.craftbukkit.CraftWorld;
 import org.bukkit.craftbukkit.inventory.CraftItemStack;
 import org.bukkit.damage.DamageSource;
 import org.bukkit.damage.DamageType;
+import org.bukkit.enchantments.Enchantment;
+import org.bukkit.entity.AbstractArrow;
 import org.bukkit.entity.Arrow;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
+import org.bukkit.entity.Projectile;
 import org.bukkit.entity.ThrownPotion;
 import org.bukkit.event.Event;
 import org.bukkit.event.EventException;
@@ -32,11 +36,12 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.scoreboard.Team;
 import tc.oc.pgm.platform.modern.material.ModernBlockMaterialData;
+import tc.oc.pgm.util.DataVersions;
 import tc.oc.pgm.util.bukkit.MiscUtils;
 import tc.oc.pgm.util.material.BlockMaterialData;
 import tc.oc.pgm.util.platform.Supports;
 
-@Supports(value = PAPER, minVersion = "1.20.6")
+@Supports(value = PAPER, minVersion = "1.21.5")
 public class ModernMiscUtil implements MiscUtils {
   @Override
   public JsonObject getServerListExtra(ServerListPingEvent event, Plugin plugin) {
@@ -55,7 +60,7 @@ public class ModernMiscUtil implements MiscUtils {
   }
 
   @Override
-  @SuppressWarnings({"deprecation", "UnstableApiUsage"})
+  @SuppressWarnings({"removal", "UnstableApiUsage"})
   public PlayerDeathEvent createDeathEvent(
       Player player, EntityDamageEvent.DamageCause dmg, List<ItemStack> drops, String msg) {
     return new PlayerDeathEvent(
@@ -77,9 +82,8 @@ public class ModernMiscUtil implements MiscUtils {
   @Override
   public ThrownPotion spawnPotion(Location loc, ItemStack item) {
     var world = ((CraftWorld) loc.getWorld()).getHandle();
-    var potion = new net.minecraft.world.entity.projectile.ThrownPotion(
-        world, loc.getX(), loc.getY(), loc.getZ());
-    potion.setItem(CraftItemStack.asNMSCopy(item));
+    var potion = new net.minecraft.world.entity.projectile.ThrownSplashPotion(
+        world, loc.getX(), loc.getY(), loc.getZ(), CraftItemStack.asNMSCopy(item));
     world.addFreshEntity(potion);
     return (ThrownPotion) potion.getBukkitEntity();
   }
@@ -95,21 +99,37 @@ public class ModernMiscUtil implements MiscUtils {
     long MAX_HEAP = 104857600L;
     try {
       var root = NbtIo.readCompressed(levelDat, NbtAccounter.create(MAX_HEAP));
-      return NbtUtils.getDataVersion(root.getCompound("Data"), -1);
+      return NbtUtils.getDataVersion(root.getCompoundOrEmpty("Data"), DataVersions.LEGACY);
     } catch (Throwable ignored) {
       // In case we cannot read the level.dat file, return a constant
-      return -1;
+      return DataVersions.LEGACY;
     }
   }
 
   @Override
-  public Key getSound(Sound enumConstant) {
-    return enumConstant.key();
+  public Key getSoundKey(String name) {
+    // From Paper, most reliable option
+    try {
+      Sound sound = (Sound) Sound.class.getField(name).get(null);
+      return Registry.SOUND_EVENT.getKey(sound);
+    } catch (IllegalAccessException | NoSuchFieldException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   @Override
   public void initScoreboardTeam(Team team, NamedTextColor color) {
     team.color(color);
     team.setOption(Team.Option.COLLISION_RULE, Team.OptionStatus.NEVER);
+  }
+
+  @Override
+  public boolean isPowerEnchanted(Projectile proj) {
+    if (proj instanceof AbstractArrow arrow) {
+      // We can leverage the used weapon data to determine if the arrow was shot from a power bow
+      var weapon = arrow.getWeapon();
+      return weapon != null && weapon.containsEnchantment(Enchantment.POWER);
+    }
+    return false;
   }
 }

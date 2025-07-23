@@ -6,11 +6,11 @@ import java.util.List;
 import net.kyori.adventure.key.Key;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Location;
-import org.bukkit.Sound;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Arrow;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
+import org.bukkit.entity.Projectile;
 import org.bukkit.entity.ThrownPotion;
 import org.bukkit.event.Event;
 import org.bukkit.event.EventException;
@@ -56,7 +56,9 @@ public interface MiscUtils {
 
   int getWorldDataVersion(Path levelDat);
 
-  Key getSound(Sound constant);
+  Key getSoundKey(String name);
 
   default void initScoreboardTeam(Team team, NamedTextColor color) {}
+
+  boolean isPowerEnchanted(Projectile proj);
 }
